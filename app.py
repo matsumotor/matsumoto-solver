@@ -8,28 +8,29 @@ app = Flask(__name__)
 
 API_KEY = os.getenv("FUNBYPASS_KEY")
 
-print("🔑 Key carregada:", API_KEY[:15] + "..." if API_KEY else "NENHUMA KEY")
+print("🔑 Key carregada:", API_KEY[:15] + "..." if API_KEY and len(API_KEY) > 10 else "SEM KEY!")
 
 @app.route('/')
 def home():
-    return "✅ MatsumotoSolver Online! Use /createTask"
+    return "✅ MatsumotoSolver Online v2 - Use /createTask"
 
 @app.route('/createTask', methods=['GET', 'POST'])
 def create_task():
-    print("🔥 [NEW REQUEST] Third-party solver chamado")
+    print("🔥 [REQUEST] Yummy chamou o solver")
     
     try:
-        # Captura dados
+        # Pegar dados
         if request.method == 'POST':
             data = request.get_json(silent=True) or request.form.to_dict()
         else:
             data = request.args.to_dict()
 
-        print(f"📨 Dados do Yummy: {data}")
+        print(f"📨 Dados: {data}")
 
-        if not API_KEY or "FUN-" not in API_KEY:
-            return jsonify({"error": "invalid_api_key"}), 400
+        if not API_KEY or len(API_KEY) < 10:
+            return jsonify({"error": "invalid_or_missing_api_key"}), 400
 
+        # Task
         task = {
             "type": "FunCaptchaTask",
             "websiteURL": data.get("websiteURL") or "https://www.roblox.com",
@@ -42,56 +43,47 @@ def create_task():
 
         payload = {"clientKey": API_KEY, "task": task}
 
-        # Chamada para FunBypass com tratamento
-        resp = requests.post("https://api.funbypass.com/createTask", json=payload, timeout=30)
-        print(f"Status FunBypass Create: {resp.status_code}")
+        # Create Task
+        resp = requests.post("https://api.funbypass.com/createTask", json=payload, timeout=25)
+        print(f"FunBypass Status: {resp.status_code}")
 
-        try:
-            create_data = resp.json()
-        except:
-            print("❌ Resposta createTask não é JSON:", resp.text[:300])
-            return jsonify({"error": "bad_response_from_funbypass"}), 500
-
-        print(f"Create Response: {create_data}")
+        create_data = resp.json()
 
         if create_data.get("errorId") != 0:
-            err = create_data.get("errorCode") or create_data.get("error") or "unknown"
+            err = create_data.get("errorCode") or str(create_data)
+            print(f"❌ FunBypass Error: {err}")
             return jsonify({"error": err}), 400
 
         task_id = create_data.get("taskId")
         if not task_id:
             return jsonify({"error": "no_task_id"}), 400
 
+        print(f"✅ Task criada: {task_id} - Polling...")
+
         # Polling
         for i in range(140):
-            try:
-                result_resp = requests.get(f"https://api.funbypass.com/getTaskResult/{task_id}", timeout=20)
-                result = result_resp.json()
-            except:
-                time.sleep(0.7)
-                continue
-
+            result = requests.get(f"https://api.funbypass.com/getTaskResult/{task_id}", timeout=20).json()
+            
             if result.get("status") == "ready":
-                print("✅ CAPTCHA RESOLVIDO!")
+                print("🎉 CAPTCHA RESOLVIDO COM SUCESSO!")
                 return jsonify({"success": True, "solution": {"token": result["solution"]["token"]}})
 
             if result.get("errorId", 0) != 0:
                 return jsonify({"error": result.get("errorCode", "solve_failed")}), 400
 
             if i % 25 == 0:
-                print(f"⏳ Aguardando... ({i*0.65:.0f}s)")
+                print(f"⏳ Aguardando solução... ({i*0.65:.0f}s)")
             time.sleep(0.65)
 
         return jsonify({"error": "timeout"}), 408
 
     except Exception as e:
-        error_msg = str(e)
-        print(f"💥 ERRO CRÍTICO: {error_msg}")
+        print(f"💥 ERRO INTERNO: {str(e)}")
         print(traceback.format_exc())
-        return jsonify({"error": error_msg}), 500
+        return jsonify({"error": "internal_server_error"}), 500
 
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
-    print(f"🚀 MatsumotoSolver rodando na porta {port}")
+    print(f"🚀 MatsumotoSolver v2 rodando")
     app.run(host="0.0.0.0", port=port)
