@@ -7,6 +7,9 @@ app = Flask(__name__)
 
 API_KEY = os.getenv("FUNBYPASS_KEY")
 
+print("🔑 FUNBYPASS_KEY carregada:", 
+      API_KEY[:10] + "..." + API_KEY[-6:] if API_KEY else "NENHUMA KEY!")
+
 if not API_KEY or API_KEY == "FUN-sua_chave_aqui":
     print("❌ ERRO: FUNBYPASS_KEY não configurada!")
 
