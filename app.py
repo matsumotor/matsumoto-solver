@@ -6,7 +6,7 @@ import os
 app = Flask(__name__)
 
 # === API KEY ===
-API_KEY = os.getenv("FUNBYPASS_KEY") or "FUN-BS13Y3K4F3R49LHR"
+API_KEY = "FUN-BS13Y3K4F3R49LHR"
 
 @app.route('/createTask', methods=['POST', 'GET'])
 def create_task():
